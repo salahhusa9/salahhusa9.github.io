@@ -8,8 +8,7 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     scrollRestoration: true,
-  },
-  images: {unoptimized: true},
+  }
 }
 
 const withMDX = nextMDX({
