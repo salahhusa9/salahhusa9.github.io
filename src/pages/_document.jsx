@@ -1,5 +1,4 @@
 import { Head, Html, Main, NextScript } from 'next/document'
-import avatarImage from '@/images/avatar.jpg'
 
 const modeScript = `
   let darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
