@@ -1,0 +1,108 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const meta = {
+  author: 'Salah eddine Bendyab',
+  date: '2023-08-15',
+  title: 'Creating Dynamic Menus in Laravel with the Laravel Menu Package',
+  description:
+    'In this tutorial, we will learn how to create dynamic menus in Laravel with the Laravel Menu package. We will create a menu builder that allows us to create nested menus.',
+}
+
+export default (props) => <ArticleLayout meta={meta} {...props} />
+
+
+**Creating Dynamic Menus in Laravel with the Laravel Menu Package**
+
+Dynamic menus are a crucial part of web applications. They allow users to navigate through a site's various sections and features seamlessly. In Laravel, the Laravel Menu package simplifies the creation and management of dynamic menus, making it an invaluable tool for developers. In this article, we'll explore the Laravel Menu package and guide you through its installation, setup, and usage to create dynamic menus in your Laravel projects.
+
+### What is the Laravel Menu Package?
+
+Before diving into the details, let's understand what the Laravel Menu package is all about. Developed by [Author Name], this package is a powerful and flexible solution for handling menus in Laravel applications. It offers features to create, customize, and render menus with ease, making navigation a breeze for both developers and users.
+
+You can find the Laravel Menu package on its [GitHub repository](https://github.com/salahhusa9/laravel-menu), where you can explore the source code, documentation, and any updates provided by the community.
+
+### Installation and Setup
+
+Let's get started by adding the Laravel Menu package to your Laravel project. The installation process is straightforward, thanks to Composer. Here are the steps:
+
+1. Open your terminal and navigate to your Laravel project's root directory.
+
+2. Run the following Composer command to install the Laravel Menu package:
+
+   ```bash
+   composer require salahhusa9/laravel-menu
+   ```
+
+3. After successful installation, publish the configuration files:
+
+   ```bash
+   php artisan vendor:publish --tag="menu-config"
+   php artisan vendor:publish --tag="menu-views"
+   ```
+
+This will create the necessary configuration files, which you can customize to suit your project's needs.
+
+### Creating Menus
+
+With the Laravel Menu package installed, it's time to start creating menus. Defining a menu is simple; you can use the provided artisan command or create menus manually in the configuration files. Here's an example of how to create a basic menu:
+
+```php
+use SalahHusa9\LaravelMenu\Menu;
+
+Menu::add('Home', 'route.name')
+    ->add('About', 'route.name')
+    ->add('Services', 'route.name');
+
+```
+
+In this example, we've created a menu named 'main' and added three items to it: 'Home,' 'About,' and 'Services.' The menu is now ready for rendering and display.
+
+### Menu Rendering and Display
+
+Rendering and displaying menus in your Laravel views is a breeze with the Laravel Menu package. You can use the following code to render your 'main' menu:
+
+```php
+<x-menu />
+```
+
+You can place this code in your view where you want the menu to appear. The package provides various rendering options, allowing you to customize the menu's HTML structure and appearance.
+
+### Menu Customization
+
+Customizing menus is where the Laravel Menu package shines. You can add CSS classes, icons, tooltips, and more to your menu items. Additionally, you can create nested menus or submenus to organize your navigation efficiently.
+
+Here's an example of how to add a CSS class and an icon to a menu item:
+
+```php
+$menu->add('Services', 'route.name', ['class' => 'text-red-500', 'icon' => 'fas fa-cog']);
+```
+
+The 'class' and 'icon' methods allow you to enhance the appearance and functionality of your menu items.
+
+### Managing Active States and Highlights
+
+One of the essential features of the Laravel Menu package is its ability to highlight the active menu item based on the current URL. This is crucial for providing users with a clear indication of their current location on your site. The package automatically handles this, but you can also specify active states explicitly.
+
+### Advanced Features
+
+The Laravel Menu package offers advanced features like menu filters, menu item conditions, and custom renderers. These features provide you with additional control and flexibility when working with menus.
+
+### Tips and Best Practices
+
+To make the most out of the Laravel Menu package, consider the following tips and best practices:
+
+- Keep your menu logic in a separate file or class to keep your code organized.
+- Leverage the package's customization options to create visually appealing menus that match your project's design.
+- Regularly check the package's documentation and GitHub repository for updates and community contributions.
+
+### Conclusion
+
+The Laravel Menu package simplifies the process of creating dynamic menus in Laravel applications. By following the steps outlined in this article, you can enhance user navigation on your website and provide a more seamless experience. Explore the Laravel Menu package and see how it can benefit your Laravel projects.
+
+### Additional Resources
+
+- [Laravel Menu GitHub Repository](https://github.com/salahhusa9/laravel-menu)
+- [Laravel Documentation](https://laravel.com/docs)
+- [Laravel Package Development](https://laravelpackage.com/)
+
+Feel free to leave your comments, questions, or suggestions below, and stay tuned for more articles to help you on your Laravel development journey!
