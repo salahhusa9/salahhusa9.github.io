@@ -1,4 +1,5 @@
 import { Head, Html, Main, NextScript } from 'next/document'
+import avatarImage from '@/images/avatar.jpg'
 
 const modeScript = `
   let darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -50,6 +51,7 @@ export default function Document() {
           type="application/feed+json"
           href={`${process.env.NEXT_PUBLIC_SITE_URL}/rss/feed.json`}
         />
+        <link rel="icon" href={avatarImage}></link>
       </Head>
       <body className="flex h-full flex-col bg-zinc-50 dark:bg-black">
         <Main />
