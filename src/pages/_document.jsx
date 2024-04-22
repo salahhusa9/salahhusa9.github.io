@@ -62,6 +62,7 @@ export default function Document() {
           type="application/feed+json"
           href={`${process.env.NEXT_PUBLIC_SITE_URL}/rss/feed.json`}
         />
+        <meta name='impact-site-verification' value='82040f35-b578-48f2-8a9f-ea069a10185a'></meta>
       </Head>
       <body className="flex h-full flex-col bg-zinc-50 dark:bg-black">
         <Main />
