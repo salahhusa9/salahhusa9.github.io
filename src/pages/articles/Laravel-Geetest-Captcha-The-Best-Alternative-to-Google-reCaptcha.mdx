@@ -1,0 +1,138 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const meta = {
+  author: 'Salah eddine Bendyab',
+  date: '2024-07-05',
+  title: 'Laravel Geetest Captcha: The Best Alternative to Google reCaptcha',
+  description:
+    'In this tutorial, we will learn how to use Geetest Captcha in Laravel with the Laravel Geetest Captcha package.',
+}
+
+export default (props) => <ArticleLayout meta={meta} {...props} />
+
+**Laravel Geetest Captcha: The Best Alternative to Google reCaptcha**
+
+## Getting Started
+
+In today's digital landscape, protecting your web application from spam and automated abuse is more crucial than ever. Geetest Captcha offers an interactive and user-friendly solution, making it a great alternative to Google reCaptcha. This guide will walk you through the steps to integrate Geetest Captcha into your Laravel application using the `laravel-geetest-captcha` package.
+
+### Why Choose Geetest Captcha?
+
+Geetest Captcha provides several advantages over traditional CAPTCHAs:
+- **User-Friendly:** Offers a more interactive experience for users.
+- **High Security:** Effective in preventing spam and automated abuse.
+- **Customization:** Easily customizable to fit your application's needs.
+
+### Installation
+
+To get started, you need to install the package via Composer. Open your terminal and run the following command:
+
+```bash
+composer require salahhusa9/laravel-geetest-captcha
+```
+
+Next, add the Geetest assets to the head tag of your layout file:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    @geetestCaptchaAssets()
+</head>
+<body>
+    ...
+</body>
+</html>
+```
+
+### Usage
+
+#### Adding Geetest Captcha to Your Form
+
+To integrate Geetest Captcha into your form, follow these steps:
+
+1. Initialize the captcha in the footer of your page using `@geetestCaptchaInit('captcha-id')`, where `captcha-id` is the ID of the captcha div.
+2. Add the captcha div to your form.
+
+Here’s an example:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geetest CAPTCHA Integration</title>
+    @geetestCaptchaAssets()
+</head>
+<body>
+    <form method="POST" action="{{ route('login') }}">
+        @csrf
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <div id="captcha-id">
+                <!-- Here we render Geetest captcha -->
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+    @geetestCaptchaInit('captcha-id')
+</body>
+</html>
+```
+
+#### Validating the Captcha in Your Controller
+
+To ensure the captcha response is valid, use the `geetest_captcha` rule in your controller. Here’s an example:
+
+```php
+use Salahhusa9\GeetestCaptcha\Rules\GeetestCaptchaValidate;
+
+public function login(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required',
+        'geetest_captcha' => ['required', new GeetestCaptchaValidate]
+    ]);
+
+    // Your login logic
+}
+```
+
+#### Validating via Middleware
+
+Alternatively, you can validate the captcha using middleware. Here’s how you can set it up:
+
+```php
+use Salahhusa9\GeetestCaptcha\Http\Middleware\ValidateGeetestCaptcha;
+
+Route::post('login', [LoginController::class, 'login'])->middleware(ValidateGeetestCaptcha::class);
+```
+
+### Testing
+
+To ensure everything is working correctly, you can run the tests using:
+
+```bash
+composer test
+```
+
+### Support Us
+
+If your business depends on our contributions, consider supporting us on [GitHub Sponsor](https://github.com/sponsors/salahhusa9). Your support helps us maintain the package and develop new features.
+
+### Conclusion
+
+Integrating Geetest Captcha into your Laravel application is a straightforward process with the `laravel-geetest-captcha` package. This will help protect your forms from spam and automated submissions while providing a user-friendly experience. For more information and advanced configuration options, refer to the [package documentation](https://github.com/salahhusa9/laravel-geetest-captcha).
