@@ -1,5 +1,4 @@
 import { Head, Html, Main, NextScript } from 'next/document'
-import geetestImage from '@/images/photos/geetestwip.jpeg'
 
 const modeScript = `
   let darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -64,12 +63,6 @@ export default function Document() {
           href={`${process.env.NEXT_PUBLIC_SITE_URL}/rss/feed.json`}
         />
         
-<meta property="og:image" content={geegestImage} />
-
-<!-- Twitter -->
-<meta property="twitter:card" content="summary_large_image" />
-
-<meta property="twitter:image" content={geegestImage} />
         <meta name='impact-site-verification' value='82040f35-b578-48f2-8a9f-ea069a10185a'></meta>
       </Head>
       <body className="flex h-full flex-col bg-zinc-50 dark:bg-black">
