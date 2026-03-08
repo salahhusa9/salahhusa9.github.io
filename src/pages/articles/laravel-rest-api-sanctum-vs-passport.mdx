@@ -1,0 +1,592 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const meta = {
+  author: 'Salah eddine Bendyab',
+  date: '2026-02-20',
+  title: 'Build a Production-Ready REST API in Laravel — Sanctum vs Passport',
+  description:
+    'Step-by-step Laravel REST API tutorial: register/login, token auth (Sanctum vs Passport), validation, pagination, testing, docs, and a starter repo you can download.',
+}
+
+export default (props) => <ArticleLayout meta={meta} {...props} />
+
+# Build a Production-Ready REST API in Laravel (Sanctum vs Passport)
+
+## TL;DR
+- Build a versioned, production-ready REST API with Laravel: register/login, token auth, resources, validation, pagination, testing and docs.
+- Use Sanctum for first-party SPAs and simple mobile/personal tokens (lightweight, fast to set up).
+- Use Passport when you need a full OAuth2 provider (third-party clients, refresh tokens, scopes).
+- This guide includes copy-paste code, testing tips, and production checklists. Offer a starter repo/Postman collection as a content upgrade.
+
+---
+
+## Introduction
+If you’re building an API in Laravel you want it to be secure, maintainable, and easy to consume from frontends and mobile apps. This guide walks through a practical setup: an API with auth (Sanctum & Passport examples), validation, resources, docs, testing and production operational tips — plus a decision guide: Sanctum vs Passport.
+
+---
+
+## What we’ll build
+- API versioning: `/api/v1/*`  
+- Endpoints:
+  - `POST /api/v1/register`
+  - `POST /api/v1/login`
+  - `GET /api/v1/user` (protected)
+  - `GET/POST/PUT/DELETE /api/v1/posts` (CRUD)
+- Features:
+  - Token auth (Sanctum & Passport)
+  - FormRequests for validation
+  - API Resources (consistent JSON)
+  - Policies for authorization
+  - Pagination, rate limiting, docs, tests
+
+---
+
+## Prerequisites
+- PHP 8.1+ (match your Laravel version)
+- Laravel 10/11 (examples compatible with 10+; adjust if needed)
+- Composer, MySQL/Postgres (or sqlite for tests), Redis (optional)
+- Postman or Insomnia
+- Optional: Docker / Valet for local dev
+
+---
+
+## Project setup (quick)
+```bash
+composer create-project laravel/laravel laravel-api
+cd laravel-api
+cp .env.example .env
+php artisan key:generate
+# configure DB in .env
+php artisan migrate
+```
+
+---
+
+## Models & migrations (posts example)
+
+database/migrations/xxxx_create_posts_table.php
+```php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up() {
+        Schema::create('posts', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('title');
+            $table->text('body');
+            $table->timestamps();
+        });
+    }
+
+    public function down() {
+        Schema::dropIfExists('posts');
+    }
+};
+```
+
+app/Models/Post.php
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Post extends Model
+{
+    protected $fillable = ['title', 'body', 'user_id'];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+```
+
+Use factories & seeders to populate demo data for local/dev.
+
+---
+
+## Routing & controllers (API versioning)
+routes/api.php
+```php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\PostController;
+
+Route::prefix('v1')->group(function () {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('user', function (\Illuminate\Http\Request $req) {
+            return new \App\Http\Resources\UserResource($req->user());
+        });
+        Route::apiResource('posts', PostController::class);
+    });
+});
+```
+(If using Passport, protect routes with the configured Passport guard — e.g. `auth:api` when your `api` guard uses `passport`.)
+
+---
+
+## Validation & Form Requests
+Keep controllers thin by using FormRequest objects.
+
+app/Http/Requests/RegisterRequest.php
+```php
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class RegisterRequest extends FormRequest
+{
+    public function authorize() { return true; }
+
+    public function rules()
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ];
+    }
+}
+```
+
+Call `$request->validated()` in controllers.
+
+---
+
+## JSON responses & API Resources
+Use resources to keep output consistent.
+
+app/Http/Resources/PostResource.php
+```php
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class PostResource extends JsonResource
+{
+    public function toArray($request)
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'body' => $this->body,
+            'author' => new UserResource($this->whenLoaded('user')),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
+    }
+}
+```
+
+Pagination:
+```php
+$posts = Post::with('user')->paginate(15);
+return PostResource::collection($posts)
+    ->additional(['meta' => ['current_page' => $posts->currentPage()]]);
+```
+
+---
+
+## Authentication options: conceptual difference
+- Sanctum: lightweight, personal access tokens + cookie-based session auth for first-party SPAs. Great for first-party apps & mobile.
+- Passport: full OAuth2 server (authorization code, client credentials, password grant, refresh tokens). Use when you need third-party client support.
+
+---
+
+## Implementing Sanctum
+Sanctum is ideal for most first-party APIs.
+
+1) Install & migrate
+```bash
+composer require laravel/sanctum
+php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
+php artisan migrate
+```
+
+2) Add trait to User model
+```php
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, Notifiable;
+    // ...
+}
+```
+
+3) Cookie-based SPA setup
+- In `config/sanctum.php` set `stateful` domains to your frontend hosts (e.g. `localhost:3000`).
+- Frontend: call `GET /sanctum/csrf-cookie` to initialize CSRF cookie, then use normal session-based auth.
+
+4) Token-based (mobile/first-party)
+```php
+$token = $user->createToken('api-token')->plainTextToken;
+```
+
+5) Protect routes
+```php
+Route::middleware('auth:sanctum')->get('/user', function (Request $req) {
+    return new UserResource($req->user());
+});
+```
+
+6) AuthController example (Sanctum token-based)
+```php
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\LoginRequest;
+use App\Http\Resources\UserResource;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+
+class AuthController extends Controller
+{
+    public function register(RegisterRequest $request)
+    {
+        $data = $request->validated();
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        return response()->json(['user' => new UserResource($user), 'token' => $token], 201);
+    }
+
+    public function login(LoginRequest $request)
+    {
+        if (!Auth::attempt($request->only('email','password'))) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
+        }
+
+        $user = Auth::user();
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        return response()->json(['user' => new UserResource($user), 'token' => $token]);
+    }
+}
+```
+
+7) Testing with Sanctum
+```php
+use Laravel\Sanctum\Sanctum;
+
+Sanctum::actingAs(User::factory()->create(), ['*']);
+$this->getJson('/api/v1/posts')->assertStatus(200);
+```
+
+When to use Sanctum:
+- First-party SPA on same domain (cookie-based).
+- Mobile/first-party apps (personal tokens).
+- When you don't need full OAuth2 flows.
+
+---
+
+## Implementing Passport
+Choose Passport when you need an OAuth2 provider for third-party clients.
+
+1) Install & setup
+```bash
+composer require laravel/passport
+php artisan migrate
+php artisan passport:install
+```
+
+2) AuthServiceProvider
+```php
+use Laravel\Passport\Passport;
+
+public function boot()
+{
+    $this->registerPolicies();
+    Passport::routes();
+    Passport::tokensExpireIn(now()->addDays(15));
+    Passport::refreshTokensExpireIn(now()->addDays(30));
+}
+```
+
+3) Update guard in `config/auth.php`
+```php
+'guards' => [
+    'api' => [
+        'driver' => 'passport',
+        'provider' => 'users',
+    ],
+],
+```
+
+4) Obtain tokens (password grant example)
+Create a password grant client:
+```bash
+php artisan passport:client --password
+# copy client id & secret and use in oauth/token requests
+```
+
+Request token (x-www-form-urlencoded):
+```
+POST /oauth/token
+grant_type=password
+client_id=CLIENT_ID
+client_secret=CLIENT_SECRET
+username=user@example.com
+password=secret
+scope=*
+```
+
+Response includes `access_token`, `expires_at`, etc.
+
+5) Personal access tokens
+```php
+$tokenResult = $user->createToken('Personal Access Token');
+$accessToken = $tokenResult->accessToken;
+$expiresAt = $tokenResult->token->expires_at;
+```
+
+6) Token revocation
+- Use Passport endpoints, or delete rows in `oauth_access_tokens`.
+
+7) Testing with Passport
+```php
+use Laravel\Passport\Passport;
+
+Passport::actingAs($user, ['*']);
+$this->getJson('/api/v1/posts')->assertStatus(200);
+```
+
+When to use Passport:
+- Third-party OAuth2 clients (authorization-code, client-credentials).
+- Need scopes, refresh token rotation, and full OAuth flows.
+
+---
+
+## Sanctum vs Passport — quick decision guide
+- SPA (first-party) same domain → Sanctum (cookie-based).
+- Mobile first-party → Sanctum (token).
+- Third-party clients / OAuth2 → Passport.
+- Need refresh tokens, scopes, client registration → Passport.
+- Fast, low-overhead setup → Sanctum.
+
+---
+
+## Authorization: Policies & Gates
+Create policies to handle per-resource permissions.
+
+Generate:
+```bash
+php artisan make:policy PostPolicy --model=Post
+```
+
+Example PostPolicy:
+```php
+public function update(User $user, Post $post)
+{
+    return $user->id === $post->user_id;
+}
+```
+
+Register in `AuthServiceProvider`:
+```php
+protected $policies = [
+    \App\Models\Post::class => \App\Policies\PostPolicy::class,
+];
+```
+
+Use in controller:
+```php
+$this->authorize('update', $post);
+// or
+public function __construct() { $this->authorizeResource(Post::class, 'post'); }
+```
+
+---
+
+## Rate limiting, throttling & CORS
+Rate limiter (RouteServiceProvider or a service provider):
+```php
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
+
+RateLimiter::for('api', function (Request $request) {
+    return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+});
+```
+
+Apply:
+```php
+Route::middleware(['throttle:api'])->group(...);
+```
+
+CORS:
+- Configure `config/cors.php` to allow only your frontend origins.
+- For Sanctum cookie auth, ensure frontend domain is configured in `stateful` domains in `config/sanctum.php`.
+
+---
+
+## Docs, versioning & API discoverability
+- Use Swagger/OpenAPI generators (Scribe, swagger-lume) or annotate controllers and generate specs.
+- Example: `knuckleswtf/scribe` can generate docs and examples (`php artisan scribe:generate`).
+- Export a Postman collection and include it in the repo.
+- Versioning strategies: URI versioning (`/api/v1`), header-based, or Accept header. URI is simple and common.
+
+---
+
+## Testing (unit, feature, end-to-end)
+- Use factories for data and feature tests for endpoints.
+- Sanctum test example:
+```php
+use Laravel\Sanctum\Sanctum;
+
+Sanctum::actingAs($user = User::factory()->create());
+$payload = ['title' => 'Hello', 'body' => 'Content'];
+$this->postJson('/api/v1/posts', $payload)->assertStatus(201)->assertJsonFragment(['title' => 'Hello']);
+```
+
+- Passport test example:
+```php
+use Laravel\Passport\Passport;
+
+Passport::actingAs($user = User::factory()->create());
+$this->getJson('/api/v1/posts')->assertStatus(200);
+```
+
+---
+
+## CI integration (example: GitHub Actions)
+`.github/workflows/ci.yml`
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v3
+        with:
+          php-version: 8.1
+          extensions: mbstring, bcmath, xml, pdo_mysql
+      - name: Install deps
+        run: composer install --no-progress --no-suggest --prefer-dist
+      - name: Run migrations & tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: |
+          php artisan migrate --env=testing --no-interaction
+          vendor/bin/phpunit --testdox
+```
+Adjust DB/service setup for your CI needs (mysql/postgres/redis).
+
+---
+
+## Monitoring, logging & observability
+- Local: Laravel Telescope (do not run Telescope in production).
+- Production: Sentry, Bugsnag, or another APM for exceptions & performance.
+- Log requests/responses carefully; redact sensitive fields.
+- Use health checks and Uptime monitoring; monitor queue worker liveness.
+
+---
+
+## Performance & scaling
+- Add DB indexes on frequently queried columns.
+- Eager load relationships (`with()`) to avoid N+1 queries.
+- Cache frequently requested responses or fragments (Redis).
+- Use queues (Redis/beanstalkd) for heavy tasks; monitor with Horizon.
+- Consider Octane / RoadRunner for high throughput — but audit code for stateful single-process behavior and memory leaks.
+
+---
+
+## Security checklist for production
+- HTTPS everywhere (force HTTPS, HSTS).
+- Secure cookies: `secure`, `httpOnly`, `sameSite`.
+- `APP_DEBUG=false` in production.
+- Rate limit auth endpoints (login/register).
+- Validate inputs and use FormRequests.
+- Guard mass assignment (`$fillable` or `$guarded`).
+- Hash passwords (`Hash::make`).
+- Token lifetimes & revoke endpoints.
+- Limit CORS origins (no wildcards in production).
+- Use security headers (CSP, X-Frame-Options).
+- Rotate client secrets and maintain revocation/audit trails.
+
+---
+
+## Deployment checklist
+- Keep `.env` out of VCS; use environment variables on servers.
+- `php artisan config:cache` and `php artisan route:cache`.
+- `composer install --no-dev --optimize-autoloader`.
+- `php artisan migrate --force`.
+- Run queue workers with supervisor/systemd; deploy Horizon if used.
+- Ensure `php artisan storage:link` for public storage.
+- Configure cron for `schedule:run`.
+- Backups & DB maintenance plan.
+- Monitoring and alerting for errors and queue failures.
+
+---
+
+## Content upgrade & starter assets (for capturing emails / driving adoption)
+- Starter GitHub repo with routes, controllers, resources & tests.
+- Postman collection / Insomnia export.
+- One-page PDF: "Sanctum vs Passport — cheat sheet".
+- Short walkthrough video (5–10 minutes).
+- 5-day mini email course: "Make your Laravel API production-ready".
+
+---
+
+## Promotion plan
+- Publish on your blog; cross-post a short version on DEV.to / Hashnode linking to canonical.
+- Publish the starter repo and include a quickstart README.
+- Share code snippets on r/laravel, Laracasts forums, and Twitter/X.
+- Submit to relevant newsletters (Laravel News).
+- Create a GitHub release and include Postman/OpenAPI artifacts.
+
+---
+
+## FAQ (good for FAQ schema)
+**Q: When should I use Sanctum over Passport?**  
+A: Use Sanctum for first-party SPAs and simple token-based auth for mobile/first-party apps. Use Passport when you need a full OAuth2 provider for third-party access, refresh tokens, scopes, and authorization code flows.
+
+**Q: Can I use Sanctum for mobile apps?**  
+A: Yes — use token-based auth (`createToken`) and send tokens in `Authorization: Bearer <token>`. For SPA same-domain cookie auth is preferred.
+
+**Q: How do I revoke tokens?**  
+A: Sanctum: `$user->tokens()->delete()` or delete specific token. Passport: use Passport token APIs or delete rows in `oauth_access_tokens`.
+
+**Q: Do I need refresh tokens?**  
+A: Only if you need long-lived sessions with rotation (typical in OAuth2 flows). For simple APIs, short expiry personal tokens + revoke endpoints may suffice.
+
+**Q: How do I document my Laravel API?**  
+A: Use Scribe or Swagger generators, annotate controllers, and export Postman/OpenAPI specs for clients.
+
+---
+
+## Conclusion & recommended next steps
+- For fast setups and most first-party apps: start with **Sanctum**.  
+- For third-party OAuth and complex flows: pick **Passport**.  
+- Implement FormRequests, API Resources, Policies, rate limiting, and automatic docs.  
+- Offer a starter repo + Postman collection as a content upgrade to drive visits and mailing-list signups.
+
+Want me to:
+- Scaffold the full starter GitHub repo (routes, controllers, requests, resources, tests)?
+- Generate a Postman collection and CI workflow example?
+Tell me which and I’ll scaffold the repo or produce the next artifacts ready to paste into your project.
